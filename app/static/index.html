@@ -71,7 +71,8 @@ async function login() {
 }
 
 function mdToHtml(text) {
-  let escaped = text.replace(/</g, '&lt;');
+  let escaped = text.replace(/[—–]/g, ',');
+  escaped = escaped.replace(/</g, '&lt;');
 
   // headers
   escaped = escaped.replace(/^### (.*$)/gim, '<h4>$1</h4>');
