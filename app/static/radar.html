@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ParcelPilot — Issue Radar</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, sans-serif; max-width: 900px; margin: 40px auto; background: #f5f6f8; color: #1a1a1a; }
+  h1 { font-size: 22px; }
+  h2 { font-size: 16px; margin-top: 32px; }
+  .card { background: white; border-radius: 10px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .flag-breached { border-left: 4px solid #dc2626; }
+  .flag-at-risk { border-left: 4px solid #f59e0b; }
+  .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+  .badge-breached { background: #fee2e2; color: #991b1b; }
+  .badge-at-risk { background: #fef3c7; color: #92400e; }
+  .badge-cluster { background: #e0e7ff; color: #3730a3; margin-left: 6px; }
+  .muted { color: #666; font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; }
+  td, th { text-align: left; padding: 6px 8px; border-bottom: 1px solid #eee; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<h1>ParcelPilot — Internal Issue Radar</h1>
+<p class="muted">Recurring, urgent, or unusual patterns across current support activity.</p>
+
+<h2>⚠️ SLA Risk</h2>
+<div id="sla-container"></div>
+
+<h2>🔗 Cross-Customer Patterns</h2>
+<div id="cross-container"></div>
+
+<h2>🗂️ Ticket Clusters</h2>
+<div id="clusters-container"></div>
+
+<script>
+async function load() {
+  const res = await fetch('/radar-data');
+  const data = await res.json();
+
+  const slaEl = document.getElementById('sla-container');
+  if (data.sla_flags.length === 0) {
+    slaEl.innerHTML = '<p class="muted">No tickets currently at risk.</p>';
+  } else {
+    slaEl.innerHTML = data.sla_flags.map(f => `
+      <div class="card ${f.status === 'BREACHED' ? 'flag-breached' : 'flag-at-risk'}">
+        <span class="badge ${f.status === 'BREACHED' ? 'badge-breached' : 'badge-at-risk'}">${f.status}</span>
+        <strong>${f.ticket_id}</strong> — ${f.subject || '(no subject)'}
+        <div class="muted">${f.account_name} (${f.account_id}) · inferred ${f.inferred_severity} ·
+        ${f.elapsed_minutes} min elapsed / ${f.target_minutes} min target</div>
+      </div>
+    `).join('');
+  }
+
+  const crossEl = document.getElementById('cross-container');
+  if (data.cross_customer_patterns.length === 0) {
+    crossEl.innerHTML = '<p class="muted">No cross-customer patterns detected right now.</p>';
+  } else {
+    crossEl.innerHTML = data.cross_customer_patterns.map(p => `
+      <div class="card">
+        <strong>${p.cluster}</strong> — affecting ${p.accounts.length} accounts, ${p.ticket_count} tickets
+        <div class="muted">Accounts: ${p.accounts.join(', ')}</div>
+      </div>
+    `).join('');
+  }
+
+  const clustersEl = document.getElementById('clusters-container');
+  clustersEl.innerHTML = Object.entries(data.clusters).map(([name, tickets]) => `
+    <div class="card">
+      <strong>${name}</strong> <span class="badge badge-cluster">${tickets.length} ticket(s)</span>
+      <table>
+        <tr><th>Ticket</th><th>Account</th><th>Subject</th><th>Status</th></tr>
+        ${tickets.map(t => `<tr><td>${t.ticket_id}</td><td>${t.account_id}</td><td>${t.subject || ''}</td><td>${t.status || ''}</td></tr>`).join('')}
+      </table>
+    </div>
+  `).join('');
+}
+load();
+</script>
+
+</body>
+</html>
