@@ -1,2 +1,105 @@
 <!DOCTYPE html>
-<html><body><h1>ParcelPilot : coming soon</h1></body></html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ParcelPilot Support</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, sans-serif; max-width: 720px; margin: 40px auto; background: #f5f6f8; color: #1a1a1a; }
+  h1 { font-size: 20px; }
+  #login-screen, #chat-screen { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  #chat-screen { display: none; }
+  select, button, input { font-size: 14px; padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; }
+  button { background: #2563eb; color: white; border: none; cursor: pointer; }
+  button:hover { background: #1d4ed8; }
+  #messages { height: 420px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; margin: 12px 0; background: #fafafa; }
+  .msg { margin-bottom: 14px; }
+  .msg.user { text-align: right; }
+  .bubble { display: inline-block; padding: 10px 14px; border-radius: 10px; max-width: 85%; white-space: pre-wrap; text-align: left; }
+  .msg.user .bubble { background: #2563eb; color: white; }
+  .msg.assistant .bubble { background: #eef0f3; color: #1a1a1a; }
+  .badges { margin-bottom: 4px; }
+  .badge { display: inline-block; background: #dbeafe; color: #1e3a8a; font-size: 11px; padding: 2px 8px; border-radius: 12px; margin-right: 6px; font-family: monospace; }
+  #input-row { display: flex; gap: 8px; }
+  #input-row input { flex: 1; }
+  #account-label { font-size: 13px; color: #666; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<h1>ParcelPilot Support</h1>
+
+<div id="login-screen">
+  <p>Sign in to continue:</p>
+  <select id="account-select">
+    <option value="ACCT-001">Northstar Logistics (ACCT-001)</option>
+    <option value="ACCT-002">LumenWorks (ACCT-002)</option>
+    <option value="ACCT-003">Account 3 (ACCT-003)</option>
+    <option value="ACCT-004">Account 4 (ACCT-004)</option>
+    <option value="INTERNAL">Internal Support Staff</option>
+  </select>
+  <button onclick="login()">Log in</button>
+</div>
+
+<div id="chat-screen">
+  <div id="account-label"></div>
+  <div id="messages"></div>
+  <div id="input-row">
+    <input id="message-input" placeholder="Ask about an order, ticket, or policy..." onkeydown="if(event.key==='Enter') sendMessage()">
+    <button onclick="sendMessage()">Send</button>
+  </div>
+</div>
+
+<script>
+let sessionId = null;
+
+async function login() {
+  const accountId = document.getElementById('account-select').value;
+  const res = await fetch('/login', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({account_id: accountId})
+  });
+  const data = await res.json();
+  sessionId = data.session_id;
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('chat-screen').style.display = 'block';
+  document.getElementById('account-label').innerText =
+    accountId === 'INTERNAL' ? 'Logged in as: Internal Support Staff' : `Logged in as: ${accountId}`;
+}
+
+function addMessage(role, text, toolTrace) {
+  const messages = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+
+  let badgesHtml = '';
+  if (toolTrace && toolTrace.length) {
+    badgesHtml = '<div class="badges">' +
+      toolTrace.map(t => `<span class="badge">🔧 ${t.tool}</span>`).join('') +
+      '</div>';
+  }
+
+  div.innerHTML = badgesHtml + `<div class="bubble">${text.replace(/</g,'&lt;')}</div>`;
+  messages.appendChild(div);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+async function sendMessage() {
+  const input = document.getElementById('message-input');
+  const text = input.value.trim();
+  if (!text) return;
+  addMessage('user', text);
+  input.value = '';
+
+  const res = await fetch('/chat', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({session_id: sessionId, message: text})
+  });
+  const data = await res.json();
+  addMessage('assistant', data.reply, data.tool_trace);
+}
+</script>
+
+</body>
+</html>
