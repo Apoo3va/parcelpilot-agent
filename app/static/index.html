@@ -14,7 +14,10 @@
   #messages { height: 420px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; margin: 12px 0; background: #fafafa; }
   .msg { margin-bottom: 14px; }
   .msg.user { text-align: right; }
-  .bubble { display: inline-block; padding: 10px 14px; border-radius: 10px; max-width: 85%; white-space: pre-wrap; text-align: left; }
+  .bubble { display: inline-block; padding: 10px 14px; border-radius: 10px; max-width: 85%; text-align: left; line-height: 1.5; }
+  .bubble h2, .bubble h3, .bubble h4 { margin: 8px 0 4px 0; font-size: 14px; }
+  .bubble ul { margin: 4px 0; padding-left: 20px; }
+  .bubble strong { font-weight: 600; }
   .msg.user .bubble { background: #2563eb; color: white; }
   .msg.assistant .bubble { background: #eef0f3; color: #1a1a1a; }
   .badges { margin-bottom: 4px; }
@@ -67,6 +70,36 @@ async function login() {
     accountId === 'INTERNAL' ? 'Logged in as: Internal Support Staff' : `Logged in as: ${accountId}`;
 }
 
+function mdToHtml(text) {
+  let escaped = text.replace(/</g, '&lt;');
+
+  // headers
+  escaped = escaped.replace(/^### (.*$)/gim, '<h4>$1</h4>');
+  escaped = escaped.replace(/^## (.*$)/gim, '<h3>$1</h3>');
+  escaped = escaped.replace(/^# (.*$)/gim, '<h2>$1</h2>');
+
+  // bold / italic
+  escaped = escaped.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  escaped = escaped.replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+  // inline code
+  escaped = escaped.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+  // bullet lists ("* " or "- " lines)
+  escaped = escaped.replace(/(^|\n)[\*\-]\s(.*)/g, '$1<li>$2</li>');
+
+  // numbered lists ("1. " lines)
+  escaped = escaped.replace(/(^|\n)\d+\.\s(.*)/g, '$1<li>$2</li>');
+
+  // wrap consecutive <li> runs in <ul>
+  escaped = escaped.replace(/(<li>.*?<\/li>\n?)+/gs, match => `<ul>${match}</ul>`);
+
+  // remaining newlines -> line breaks
+  escaped = escaped.replace(/\n/g, '<br>');
+
+  return escaped;
+}
+
 function addMessage(role, text, toolTrace) {
   const messages = document.getElementById('messages');
   const div = document.createElement('div');
@@ -79,7 +112,8 @@ function addMessage(role, text, toolTrace) {
       '</div>';
   }
 
-  div.innerHTML = badgesHtml + `<div class="bubble">${text.replace(/</g,'&lt;')}</div>`;
+  const bodyHtml = role === 'assistant' ? mdToHtml(text) : text.replace(/</g, '&lt;');
+  div.innerHTML = badgesHtml + `<div class="bubble">${bodyHtml}</div>`;
   messages.appendChild(div);
   messages.scrollTop = messages.scrollHeight;
 }
